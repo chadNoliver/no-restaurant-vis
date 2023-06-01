@@ -1,7 +1,81 @@
 ---
-title: "no-restaurant-vis"
+title: "New Orleans Restaurants"
 ---
 
-## Quarto
+## Step 1: Access Restaurant Data 
+```{python}
+#| eval: false 
+from sodapy import Socrata
+import pandas as pd
+import json
+api_url = "data.nola.gov"
+resource = "hjcd-grvu"
+client = Socrata(api_url, None)
+results = client.get(resource, limit = 50000)
+restaurants = [item for item in results if item['businesstype'] == '1105 - FULL SVC RESTAURANTS (TABLE SERVICE)']
+json = json.dumps(restaurants, indent=4)
+with open("restaurants.json", "w") as outfile:
+  outfile.write(json)
+```
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+## Step 2: Access Neighborhood Data 
+```{python}
+#| eval: false 
+from sodapy import Socrata
+import pandas as pd
+import json
+api_url = "data.nola.gov"
+resource = "fd6p-qxmq"
+client = Socrata(api_url, None)
+results = client.get(resource, limit = 50000)
+json = json.dumps(results, indent=4)
+with open("neighborhoods.json", "w") as outfile:
+  outfile.write(json)
+```
+
+## Step 3: Map with Leaflet
+```{python}
+from sodapy import Socrata
+import json
+import pandas as pd
+import geopandas as gpd
+from ipyleaflet import Map, basemaps, basemap_to_tiles, GeoData, LayersControl
+
+df = gpd.read_file("neighborhoods.geojson")
+df.plot()
+geo_data = GeoData(
+   geo_dataframe = df,
+   name = 'Neighborhoods'
+)
+m = Map(center=(30.204793, -90.000000), zoom=9)
+tiles = basemap_to_tiles(basemaps.CartoDB.Voyager)
+m.add_layer(geo_data)
+m
+```
+## Step 4: Map Restaurants with Leaflet
+
+```{python}
+import json
+import pandas as pd
+import geopandas as gpd
+from ipyleaflet import Map, basemaps, basemap_to_tiles, GeoData, LayersControl
+with open('restaurants.json') as file:
+  restaurants_json = json.load(file)
+
+rdf = pd.DataFrame(restaurants_json)
+restaurants = gpd.GeoDataFrame(rdf, geometry=gpd.points_from_xy(rdf.longitude,rdf.latitude),crs="EPSG:4326")
+restaurants.plot()
+geo_data = GeoData(
+   geo_dataframe = restaurants,
+   style={'color': 'black', 'fillColor': '#3366cc', 'opacity':0.05, 'weight':1.9, 'dashArray':'2', 'fillOpacity':0.6},
+   hover_style={'fillColor': 'red' , 'fillOpacity': 0.2},
+   name = 'Restaurants'
+)
+m = Map(center=(30.204793, -90.000000), zoom=9)
+tiles = basemap_to_tiles(basemaps.CartoDB.Voyager)
+m.add_layer(geo_data)
+m
+```
+
+
+
