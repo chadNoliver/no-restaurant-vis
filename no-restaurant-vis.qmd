@@ -4,7 +4,8 @@ title: "New Orleans Restaurants"
 
 ## Step 1: Access Restaurant Data 
 ```{python}
-#| eval: false 
+
+#| eval: false
 from sodapy import Socrata
 import pandas as pd
 import json
@@ -12,7 +13,11 @@ api_url = "data.nola.gov"
 resource = "hjcd-grvu"
 client = Socrata(api_url, None)
 results = client.get(resource, limit = 50000)
-restaurants = [item for item in results if item['businesstype'] == '1105 - FULL SVC RESTAURANTS (TABLE SERVICE)']
+restaurants = [item for item in results if (item['businesstype'] == '1105 - FULL SVC RESTAURANTS (TABLE SERVICE)' or item['businesstype'] == '2062 - LIMITED SVC RESTAURANTS(NO TABLE SVC)' or item['businesstype'] == '1126 - DRINKING PLACES (ALCOHOLIC BEVERAGES)'	)]
+businesses_json = json.dumps(results, indent=4)
+with open("businesses.json", "w") as outfile:
+  outfile.write(businesses_json)
+
 json = json.dumps(restaurants, indent=4)
 with open("restaurants.json", "w") as outfile:
   outfile.write(json)
@@ -21,19 +26,16 @@ with open("restaurants.json", "w") as outfile:
 ## Step 2: Access Neighborhood Data 
 ```{python}
 #| eval: false 
-from sodapy import Socrata
 import pandas as pd
+import requests
 import json
-api_url = "data.nola.gov"
-resource = "fd6p-qxmq"
-client = Socrata(api_url, None)
-results = client.get(resource, limit = 50000)
-json = json.dumps(results, indent=4)
-with open("neighborhoods.json", "w") as outfile:
-  outfile.write(json)
+api_url = "https://maps.nola.gov/server/rest/services/Reference/Reference_Layers/MapServer/0/query?where=OBJECTID%3E0&outFields=*&returnGeometry=true&f=geojson"
+results = requests.get(api_url)
+with open("neighborhoods.geojson", "w") as outfile:
+  outfile.write(results.content.decode('utf-8'))
 ```
 
-## Step 3: Map with Leaflet
+## Step 3: Map Neighborhoods with Leaflet
 ```{python}
 from sodapy import Socrata
 import json
@@ -77,5 +79,14 @@ m.add_layer(geo_data)
 m
 ```
 
+```{python}
+from IPython.display import display, HTML
+with open('businesses.json') as file:
+  businesses_json = json.load(file)
 
+df = pd.DataFrame(businesses_json)
+display(HTML(df.head().to_html()))
+a = pd.DataFrame(df.groupby('businesstype').size().sort_values(ascending=False))
+display(HTML(a.to_html()))
+```
 
